@@ -1,0 +1,38 @@
+version: "3.8"
+
+networks:
+  private:
+  public:
+
+services:
+  proxy:
+    image: envoyproxy/envoy:v1.28-latest
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml
+    networks:
+      - private
+      - public
+    depends_on:
+      - app
+      - redis
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+
+  app:
+    build:
+      context: ./
+    volumes:
+      - ./app:/app
+    ports:
+      - "8099:80" #for debugging only, otherwise go through envoy
+    environment:
+      - port=80
+    working_dir: /app
+    networks:
+      - private
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - private

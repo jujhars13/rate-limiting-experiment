@@ -1,0 +1,60 @@
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
+
+static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 8080
+      filterChains:
+        - filters:
+          # Add a network filter to handle incoming HTTP traffic
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: auto
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: backend
+                  domains:
+                    - "*"
+                  routes:
+                  - match: { prefix: "/" }
+                    route: { cluster: service }
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config: { "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router }
+
+          # # Add a rate limiting filter using Redis as the backend
+          # - name: envoy.filters.ratelimiter.v2.RateLimiter
+          #   config:
+          #     ratelimiter_stats_prefix: "ratelimit_"
+          #     rateLimit:
+          #       limit: 10
+          #       period: "5s"
+          #       redisConfig:
+          #         host: "redis"
+          #         port: 6379
+          #         namespace: "myapp:"
+
+  clusters:
+    - name: service
+      connect_timeout: 0.25s
+      type: strict_dns
+      lb_policy: round_robin
+      load_assignment:
+        cluster_name: backend
+        endpoints:
+        - lb_endpoints:
+          - endpoint:
+              address:
+                socket_address:
+                  address: app
+                  port_value: 80
